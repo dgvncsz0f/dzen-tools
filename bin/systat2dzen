@@ -314,9 +314,8 @@ class render(object):
         result[p] = v
         break
     emails = ",".join(map(lambda (k,v): "{0:s}:{1:d}".format(k,v), result.iteritems()))
-    print(image("%s/icons/mail.xbm" % pwd()))
     if (len(emails) > 0):
-      return("%s: %s" % (image("%s/icons/mail.xbm" % pwd()), emails))
+      return("%s: %s" % (image("%s/../icons/mail.xbm" % pwd()), emails))
     else:
       return("")
 
