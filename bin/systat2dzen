@@ -7,7 +7,6 @@ import sys
 import math
 import time
 import threading
-import subprocess
 import platform
 import optparse
 import urlparse
@@ -18,12 +17,8 @@ def pwd():
   return(os.path.dirname(os.path.abspath(__file__)))
 
 def sectorsz(device):
-  p = subprocess.Popen(["/usr/sbin/blktool", "/dev/%s" % device, "sector-sz"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  (out, _) = p.communicate()
-  if (p.wait() == 0):
-    return(int(out))
-  else:
-    return(512)
+  # TODO:hard coding 512 until python exports the necessary ioctl flags
+  return(512)
 
 def safe(f, default, *args, **kwargs):
   try:
