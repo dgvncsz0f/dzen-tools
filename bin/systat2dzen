@@ -148,7 +148,7 @@ def iostat(device, size):
   return(data[2]*size, data[6]*size)
 
 def sysinfo():
-  now  = time.strftime("%a, %b %Y %H:%M")
+  now  = time.strftime("%a, %d %b %Y %H:%M")
   node = platform.node()
   return({ "time": now,
            "hostfdqn": node,
