@@ -85,7 +85,7 @@ def retrieve(pattern, text, default=None):
   else:
     return(default)
 
-def human_unit(n, fmt="{0: >6,.1f} {1:s}"):
+def human_unit(n, fmt="{0: >5,.1f} {1:s}"):
   unit = ["b/s", "K/s", "M/s", "G/s", "T/s", "P/s", "E/s", "Z/s", "Y/s"]
   while (n>512 and len(unit)>1):
     n = n / 1024.0
@@ -252,7 +252,7 @@ def pbar(p, w, h, white="", black="#2b2b2b"):
   right = w - left
   mybar = set_color(fg=white) + bar(left, h) + set_color(fg=black) + bar(right, h)
   mybar = with_color(mybar, fg=black)
-  fmt   = "{0: >4,.0f}% {1:s}"
+  fmt   = "{0: >3,.0f}% {1:s}"
   return(fmt.format(p*100, mybar))
 
 def image(f):
@@ -318,20 +318,20 @@ class render(object):
     mem = meminfo()
     p   = mem["swap_free_%"]
     # return("swap %s" % pbar(1 - mem["swap_free_%"], 50, 10))
-    return("swap {0: >4,.0f}%".format((1-p)*100))
+    return("swap {0: >3,.0f}%".format((1-p)*100))
 
   def dump_cpuinfo(self):
     return("cpu %s" % pbar(1 - self.cpu_sampler.get([1])[0], 50, 10))
 
   def dump_netinfo(self):
-    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >6,.1f}⬇ {1:s}")
-    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt=u"{0: >6,.1f}⬆ {1:s}")
+    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >5,.1f}⬇ {1:s}")
+    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt=u"{0: >5,.1f}⬆ {1:s}")
     ifname     = netinfo()["ifname"]
     return("%s %s %s" % (ifname, downstream, upstream))
 
   def dump_ioinfo(self):
-    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0: >6,.1f}⬆ {1:s}")
-    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0: >6,.1f}⬇ {1:s}")
+    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0: >5,.1f}⬆ {1:s}")
+    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0: >5,.1f}⬇ {1:s}")
     return("%s %s %s" % (self.device, reads, writes))
 
   def dump(self):
