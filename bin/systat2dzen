@@ -259,7 +259,7 @@ def image(f):
   return("^i(%s)" % os.path.expanduser(f))
 
 def sep():
-  return(with_color(" ||", fg="#666666"))
+  return(with_color(" || ", fg="#666666"))
 
 def write(s):
   sys.stdout.write(s.encode("utf-8"))
