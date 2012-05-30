@@ -6,6 +6,7 @@ import os
 import sys
 import math
 import time
+import json
 import threading
 import platform
 import optparse
@@ -19,6 +20,10 @@ def pwd():
 def sectorsz(device):
   # TODO:hard coding 512 until python exports the necessary ioctl flags
   return(512)
+
+def cat(p):
+  with file(os.path.expanduser(p), "r") as f:
+    return(f.read())
 
 def safe(f, default, *args, **kwargs):
   try:
@@ -85,7 +90,7 @@ def retrieve(pattern, text, default=None):
   else:
     return(default)
 
-def human_unit(n, fmt="{0: >6,.1f} {1:s}"):
+def human_unit(n, fmt="{0:>6,.1f} {1:s}"):
   unit = ["b/s", "K/s", "M/s", "G/s", "T/s", "P/s", "E/s", "Z/s", "Y/s"]
   while (n>512 and len(unit)>1):
     n = n / 1024.0
@@ -104,14 +109,13 @@ def human_time(t, fmt="{0:.0f}{1:s}"):
 
 def meminfo():
   result = {}
-  with file("/proc/meminfo", "r") as f:
-    output = f.read()
-    result["total"]   = map(long, retrieve(r"^MemTotal:\s+(\d+) kB", output, [0]))[0]
-    result["free"]    = map(long, retrieve(r"^MemFree:\s+(\d+) kB", output, [0]))[0]
-    result["buffers"] = map(long, retrieve(r"^Buffers:\s+(\d+) kB", output, [0]))[0]
-    result["cached"]  = map(long, retrieve(r"^Cached:\s+(\d+) kB", output, [0]))[0]
-    result["swap_total"] = map(long, retrieve(r"^SwapTotal:\s+(\d+) kB", output, [0]))[0]
-    result["swap_free"]  = map(long, retrieve(r"^SwapFree:\s+(\d+) kB", output, [0]))[0]
+  output = cat("/proc/meminfo")
+  result["total"]   = map(long, retrieve(r"^MemTotal:\s+(\d+) kB", output, [0]))[0]
+  result["free"]    = map(long, retrieve(r"^MemFree:\s+(\d+) kB", output, [0]))[0]
+  result["buffers"] = map(long, retrieve(r"^Buffers:\s+(\d+) kB", output, [0]))[0]
+  result["cached"]  = map(long, retrieve(r"^Cached:\s+(\d+) kB", output, [0]))[0]
+  result["swap_total"] = map(long, retrieve(r"^SwapTotal:\s+(\d+) kB", output, [0]))[0]
+  result["swap_free"]  = map(long, retrieve(r"^SwapFree:\s+(\d+) kB", output, [0]))[0]
 
   free  = result["free"] + result["buffers"] + result["cached"]
   total = result["total"]
@@ -125,19 +129,52 @@ def meminfo():
 
 def cpustat():
   result = {}
-  with file("/proc/stat", "r") as f:
-    output = f.read()
-    for line in output.splitlines():
-      if (line.startswith("cpu")):
-        cpu = line.split()
-        result[cpu[0]] = map(long, cpu[1:])
-    return(result)
+  output = cat("/proc/stat")
+  for line in output.splitlines():
+    if (line.startswith("cpu")):
+      cpu = line.split()
+      result[cpu[0]] = map(long, cpu[1:])
+  return(result)
+
+def batstat():
+  def devices():
+    r = {}
+    d = "/sys/class/power_supply"
+    for m in os.listdir(d):
+      b = "%s/%s" % (d, m)
+      f = "%s/type" % b
+      if (os.path.exists(f)):
+        btype = cat(f).strip().lower()
+        if (btype not in r):
+          r[btype] = []
+        r[btype].append(b)
+    return(r)
+
+  def aconline(b):
+    return(safe(cat, "0", "%s/online" % b).strip()=="1")
+
+  def batlevel(b):
+    if (safe(cat, "0", "%s/present" % b).strip() == "1"):
+      now  = int(cat("%s/charge_now" % b).strip())
+      full = int(cat("%s/charge_full" % b).strip())
+      return(min(now,full) / float(full))
+    else:
+      return(0);
+
+  devs = devices()
+  if (len(devs) > 0):
+    level    = sum(map(batlevel, devs["battery"])) / len(devs["battery"])
+    acenergy = reduce(lambda acc, b: acc or aconline(b), devs["mains"], False)
+    return({ "level": level,
+             "acon" : acenergy,
+           })
+  else:
+    return({})
 
 def iostat(device, size):
   def stat():
-    with file("/sys/block/%s/stat" % device, "r") as f:
-      output = f.read()
-      return(map(long, output.split()))
+    output = cat("/sys/block/%s/stat" % device)
+    return(map(long, output.split()))
 
   data = safe(stat, [0,0,0,0,0,0,0])
   return(data[2]*size, data[6]*size)
@@ -151,18 +188,15 @@ def sysinfo():
          })
 
 def loadinfo():
-  with file("/proc/loadavg", "r") as f:
-    output = f.read()
-    (load1, load5, load15) = map(float, output.split()[:3])
-  with file("/proc/uptime", "r") as f:
-    output = f.read()
-    uptime = map(float, output.split())[0]
+  output = cat("/proc/loadavg")
+  (load1, load5, load15) = map(float, output.split()[:3])
+  output = cat("/proc/uptime")
+  uptime = map(float, output.split())[0]
   return(uptime, load1, load5, load15)
 
 def imapinfo():
   def accounts():
-    with file(os.path.expanduser("~/.systat2dzen/imap"), "r") as f:
-      return(eval(f.read()))
+    return(json.loads(cat("~/.systat2dzen/imap")))
 
   def imap_unseen(account):
     if (account["proto"] == "imaps"):
@@ -190,22 +224,20 @@ def netinfo():
   RTF_GATEWAY = 0x0002
   rtf_flag    = lambda x,f: int(x)&f==f
   def active_if():
-    with file("/proc/net/route", "r") as f:
-      output = f.read()
-      for line in output.splitlines()[1:]:
-        (ifname, dest, gw, flags) = line.split()[:4]
-        if (rtf_flag(flags, RTF_UP) and rtf_flag(flags, RTF_GATEWAY)):
-          if (long(dest, 16) == 0):
-            return(ifname)
+    output = cat("/proc/net/route")
+    for line in output.splitlines()[1:]:
+      (ifname, dest, gw, flags) = line.split()[:4]
+      if (rtf_flag(flags, RTF_UP) and rtf_flag(flags, RTF_GATEWAY)):
+        if (long(dest, 16) == 0):
+          return(ifname)
     return("--")
 
   def wireless(ifname):
-    with file("/proc/net/wireless", "r") as f:
-      output = f.read()
-      for line in output.splitlines():
-        if (line.startswith(ifname)):
-          return(True)
-      return(False)
+    output = cat("/proc/net/wireless")
+    for line in output.splitlines():
+      if (line.startswith(ifname)):
+        return(True)
+    return(False)
 
   ifname = active_if()
   return({ "ifname": ifname,
@@ -213,20 +245,19 @@ def netinfo():
          })
 
 def netstat(ifname):
-  with file("/proc/net/dev", "r") as f:
-    output  = f.read()
-    rxbytes = -1
-    txbytes = -1
-    for line in output.splitlines():
-      data = filter(lambda x: len(x.strip())>0, re.split(r"[ |:]", line))
-      if (rxbytes==-1 and "bytes" in data):
-        rxbytes = data.index("bytes")
-      if (txbytes==-1 and rxbytes!=-1):
-        txbytes = data.index("bytes", rxbytes+1)
-      if (ifname in data):
-        result = map(long, data[1:])
-        return(result[rxbytes-1], result[txbytes-1])
-    return([0, 0])
+  output  = cat("/proc/net/dev")
+  rxbytes = -1
+  txbytes = -1
+  for line in output.splitlines():
+    data = filter(lambda x: len(x.strip())>0, re.split(r"[ |:]", line))
+    if (rxbytes==-1 and "bytes" in data):
+      rxbytes = data.index("bytes")
+    if (txbytes==-1 and rxbytes!=-1):
+      txbytes = data.index("bytes", rxbytes+1)
+    if (ifname in data):
+      result = map(long, data[1:])
+      return(result[rxbytes-1], result[txbytes-1])
+  return([0, 0])
 
 def bar(w, h):
   fmt = "^r(%dx%d)"
@@ -247,16 +278,19 @@ def set_color(fg=None, bg=None):
     s = "^fg(%s)%s" % (fg, s)
   return(s)
 
-def pbar(p, w, h, white="", black="#2b2b2b"):
+def pbar(p, w=35, h=10, white="", black="#2b2b2b"):
   left  = math.ceil(p * w)
   right = w - left
   mybar = set_color(fg=white) + bar(left, h) + set_color(fg=black) + bar(right, h)
   mybar = with_color(mybar, fg=black)
-  fmt   = "{0: >4,.0f}% {1:s}"
+  fmt   = "{0:>3,.0f}% {1:s}"
   return(fmt.format(p*100, mybar))
 
 def image(f):
   return("^i(%s)" % os.path.expanduser(f))
+
+def myimage(f):
+  return(image("%s/../icons/%s" % (pwd(), f)))
 
 def sep():
   return(with_color(" || ", fg="#666666"))
@@ -284,16 +318,16 @@ class render(object):
 
   def dump_meminfo(self):
     mem = meminfo()
-    return("mem %s" % pbar(1 - mem["free_%"], 50, 10))
+    return("mem %s" % pbar(1 - mem["free_%"]))
 
   def dump_system(self):
     machine = sysinfo()
-    return(" %s - %s " % (machine["hostname"],machine["time"]))
+    return("%s - %s " % (machine["hostname"],machine["time"]))
 
   def dump_loadinfo(self):
     load   = loadinfo()
     uptime = human_time(load[0])
-    return("uptime {0:s} {1: >5,.2f} {2: >5,.2f} {3: >5,.2f}".format(uptime, load[1], load[2], load[3]))
+    return("uptime {0:s} {1:>5,.2f} {2:>5,.2f} {3:>5,.2f}".format(uptime, load[1], load[2], load[3]))
 
   def dump_emailinfo(self):
     accounts = self.emails.get({})
@@ -310,7 +344,7 @@ class render(object):
         break
     emails = ",".join(map(lambda (k,v): "{0:s}:{1:d}".format(k,v), result.iteritems()))
     if (len(emails) > 0):
-      return("%s: %s" % (image("%s/../icons/mail.xbm" % pwd()), emails))
+      return("%s: %s" % (myimage("mail.xbm"), emails))
     else:
       return("")
 
@@ -318,10 +352,10 @@ class render(object):
     mem = meminfo()
     p   = mem["swap_free_%"]
     # return("swap %s" % pbar(1 - mem["swap_free_%"], 50, 10))
-    return("swap {0: >4,.0f}%".format((1-p)*100))
+    return("swap {0:>4,.0f}%".format((1-p)*100))
 
   def dump_cpuinfo(self):
-    return("cpu %s" % pbar(1 - self.cpu_sampler.get([1])[0], 50, 10))
+    return("cpu %s" % pbar(1 - self.cpu_sampler.get([1])[0]))
 
   def dump_netinfo(self):
     downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >6,.1f}⬇ {1:s}")
@@ -329,22 +363,47 @@ class render(object):
     ifname     = netinfo()["ifname"]
     return("%s %s %s" % (ifname, downstream, upstream))
 
+  def dump_batinfo(self):
+    stats = batstat()
+    level = int(math.ceil(stats.get("level", 0) * 100))
+    icon  = ""
+    if (stats.get("acon", False)):
+      icon = [ myimage("ac-charging.xbm"),
+               myimage("ac-charged.xbm")
+             ][level == 100]
+    else:
+      if (level >= 50):
+        icon = myimage("battery-full.xbm")
+      elif (level >= 10):
+        icon = myimage("battery-low.xbm")
+      elif (level >= 5):
+        icon = myimage("battery-critical.xbm")
+      else:
+        icon = myimage("battery-empty.xbm")
+
+    if (len(stats) > 0):
+      return("{0:s}{1:>4,d}%".format(icon, level))
+    else:
+      return("")
+
   def dump_ioinfo(self):
-    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0: >6,.1f}⬆ {1:s}")
-    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0: >6,.1f}⬇ {1:s}")
+    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0:>6,.1f}⬆ {1:s}")
+    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0:>6,.1f}⬇ {1:s}")
     return("%s %s %s" % (self.device, reads, writes))
 
   def dump(self):
     write("^tw() ")
-    write(reduce(lambda acc, x: acc + sep() + x, [ self.dump_cpuinfo()
-                                                 , self.dump_meminfo()
-                                                 , self.dump_swpinfo()
-                                                 , self.dump_netinfo()
-                                                 , self.dump_ioinfo()
-                                                 , self.dump_loadinfo()
-                                                 , self.dump_system()
-                                                 , self.dump_emailinfo()
-                                                 ]))
+    monitors = filter(lambda s: len(s)>0, [ self.dump_cpuinfo()
+                                          , self.dump_meminfo()
+                                          , self.dump_swpinfo()
+                                          , self.dump_netinfo()
+                                          , self.dump_ioinfo()
+                                          , self.dump_loadinfo()
+                                          , self.dump_batinfo()
+                                          , self.dump_system()
+                                          , self.dump_emailinfo()
+                                          ])
+    write(reduce(lambda acc, x: acc + sep() + x, monitors))
     eof()
 
 if __name__ == "__main__":
