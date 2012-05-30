@@ -10,12 +10,13 @@ systat2dzen
 Monitors machine resources (and other things) using dzen as the output device:
 
 * cpu utilization
-* memory
-* swap
-* load
+* memory usage
+* swap usage
+* load (uptime, load 1m 5m 15m)
 * network usage
 * disk usage
-* date/time
+* hostname, date/time
+* battery
 * imap email
 
 How to use
