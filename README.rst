@@ -28,6 +28,8 @@ How to use
 Config files
 ------------
 
+* imap (type=json)
+
 ::
 
   $HOME/.systat2dzen/imap
@@ -35,7 +37,7 @@ Config files
                "hostname": "imap.gmail.com",
                "port"    : 993,
                "user"    : "e@ma.il",
-               "password": r"...",
+               "password": "...",
                "folders" : ["INBOX", ...]
              }
   }
