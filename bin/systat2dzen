@@ -161,7 +161,7 @@ def batstat():
     else:
       return(0);
 
-  devs = devices()
+  devs = safe(devices, {})
   if (len(devs) > 0):
     level    = sum(map(batlevel, devs["battery"])) / len(devs["battery"])
     acenergy = reduce(lambda acc, b: acc or aconline(b), devs["mains"], False)
