@@ -169,7 +169,7 @@ def batstat():
              "acon" : acenergy,
            })
   else:
-    return({"level": 0.99, "acon": True})
+    return({})
 
 def iostat(device, size):
   def stat():
@@ -357,9 +357,15 @@ class render(object):
   def dump_cpuinfo(self):
     return("cpu %s" % pbar(1 - self.cpu_sampler.get([1])[0]))
 
+  def arup(self):
+    return(myimage("arrow_up.xpm"))
+
+  def ardown(self):
+    return("^p(;2)%s^p()" % myimage("arrow_down.xpm"))
+
   def dump_netinfo(self):
-    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >5,.1f}v {1:s}")
-    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt=u"{0: >5,.1f}^^ {1:s}")
+    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt="{0: >5,.1f}%s {1:s}" % self.arup())
+    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt="{0: >5,.1f}%s {1:s}" % self.ardown())
     ifname     = netinfo()["ifname"]
     return("%s %s %s" % (ifname, downstream, upstream))
 
@@ -387,8 +393,8 @@ class render(object):
       return("")
 
   def dump_ioinfo(self):
-    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0:>6,.1f}^^ {1:s}")
-    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0:>6,.1f}v {1:s}")
+    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0:>6,.1f}%s {1:s}" % self.arup())
+    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0:>6,.1f}%s {1:s}" % self.ardown())
     return("%s %s %s" % (self.device, reads, writes))
 
   def dump(self):
