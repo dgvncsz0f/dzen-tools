@@ -169,7 +169,7 @@ def batstat():
              "acon" : acenergy,
            })
   else:
-    return({})
+    return({"level": 0.99, "acon": True})
 
 def iostat(device, size):
   def stat():
@@ -358,8 +358,8 @@ class render(object):
     return("cpu %s" % pbar(1 - self.cpu_sampler.get([1])[0]))
 
   def dump_netinfo(self):
-    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >5,.1f}⬇ {1:s}")
-    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt=u"{0: >5,.1f}⬆ {1:s}")
+    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >5,.1f}v {1:s}")
+    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt=u"{0: >5,.1f}^^ {1:s}")
     ifname     = netinfo()["ifname"]
     return("%s %s %s" % (ifname, downstream, upstream))
 
@@ -387,8 +387,8 @@ class render(object):
       return("")
 
   def dump_ioinfo(self):
-    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0:>6,.1f}⬆ {1:s}")
-    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0:>6,.1f}⬇ {1:s}")
+    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0:>6,.1f}^^ {1:s}")
+    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0:>6,.1f}v {1:s}")
     return("%s %s %s" % (self.device, reads, writes))
 
   def dump(self):
