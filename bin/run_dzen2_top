@@ -1,6 +1,6 @@
 #!/bin/sh
 
-dzen2_height=${dzen2_height:-16}
+dzen2_height=${dzen2_height:-20}
 screenh=$(/usr/bin/xwininfo -stats -root | grep Height | sed -r 's/\s*height: ([0-9]+).*/\1/i')
 self=$(basename $0)
 

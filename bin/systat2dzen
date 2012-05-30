@@ -90,7 +90,7 @@ def retrieve(pattern, text, default=None):
   else:
     return(default)
 
-def human_unit(n, fmt="{0:>6,.1f} {1:s}"):
+def human_unit(n, fmt="{0:>5,.1f} {1:s}"):
   unit = ["b/s", "K/s", "M/s", "G/s", "T/s", "P/s", "E/s", "Z/s", "Y/s"]
   while (n>512 and len(unit)>1):
     n = n / 1024.0
@@ -352,14 +352,14 @@ class render(object):
     mem = meminfo()
     p   = mem["swap_free_%"]
     # return("swap %s" % pbar(1 - mem["swap_free_%"], 50, 10))
-    return("swap {0:>4,.0f}%".format((1-p)*100))
+    return("swap {0:>3,.0f}%".format((1-p)*100))
 
   def dump_cpuinfo(self):
     return("cpu %s" % pbar(1 - self.cpu_sampler.get([1])[0]))
 
   def dump_netinfo(self):
-    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >6,.1f}⬇ {1:s}")
-    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt=u"{0: >6,.1f}⬆ {1:s}")
+    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt=u"{0: >5,.1f}⬇ {1:s}")
+    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt=u"{0: >5,.1f}⬆ {1:s}")
     ifname     = netinfo()["ifname"]
     return("%s %s %s" % (ifname, downstream, upstream))
 
