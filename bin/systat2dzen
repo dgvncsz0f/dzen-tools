@@ -154,11 +154,14 @@ def batstat():
     return(safe(cat, "0", "%s/online" % b).strip()=="1")
 
   def batlevel(b):
-    if (safe(cat, "0", "%s/present" % b).strip() == "1"):
-      now  = int(cat("%s/charge_now" % b).strip())
-      full = int(cat("%s/charge_full" % b).strip())
-      return(min(now,full) / float(full))
-    else:
+    try:
+      if (safe(cat, "0", "%s/present" % b).strip() == "1"):
+        now  = int(cat("%s/charge_now" % b).strip())
+        full = int(cat("%s/charge_full" % b).strip())
+        return(min(now,full) / float(full))
+      else:
+        return(0);
+    except:
       return(0);
 
   devs = safe(devices, {})
