@@ -37,10 +37,10 @@ fmap_cons = lambda x: [x]
 class background(object):
 
   def __init__(self, f, interval, *args, **kwargs):
-    self.f      = f
-    self.args   = args
-    self.kwargs = kwargs
-    self.out    = None
+    self.f        = f
+    self.args     = args
+    self.kwargs   = kwargs
+    self.out      = None
     self.interval = interval
     t = threading.Thread(target=self.invoke)
     t.setDaemon(True)
@@ -62,19 +62,19 @@ class background(object):
 
 class sampler(background):
 
-  def __init__(self, *args):
-    super(sampler, self).__init__(sampler.sample, 0, *args)
+  def __init__(self, interval, *args):
+    self.my_interval = interval
+    super(sampler, self).__init__(self.sample, 0, *args)
 
-  @classmethod
   def sample(self, output, f, h, fmap=fmap_id):
-    samples = 1
+    samples = 2
     odata   = fmap(f())
-    avg_f   = lambda (x,y): x/float(samples) + y
+    avg_f   = lambda (x,y): (x/float(samples) + y)
     zeros   = lambda x: map(lambda _: 0, range(x))
     while True:
       r = []
       for i in range(samples):
-        time.sleep(1)
+        time.sleep(self.my_interval)
         ndata = fmap(f())
         diff  = map(lambda (x,y): h(x,y), zip(ndata, odata))
         odata = ndata
@@ -308,16 +308,17 @@ def eof():
 class render(object):
 
   def __init__(self, device):
+    interval = 1
     cpu_diff = lambda (nv,nt),(ov,ot): (nv - ov)/max(float(nt - ot), 1.0)
     cpu_read = lambda cpu: [(cpu["cpu"][3], sum(cpu["cpu"]))]
-    net_diff = lambda n,o: n-o
+    net_diff = lambda n,o: (n-o) / float(interval)
     io_diff  = net_diff
     secsz    = sectorsz(device)
     self.device      = device
-    self.cpu_sampler = sampler(cpustat, cpu_diff, cpu_read)
-    self.net_sampler = sampler(lambda: netstat(netinfo()["ifname"]), net_diff)
-    self.io_sampler  = sampler(lambda: iostat(device, secsz), io_diff)
-    self.emails      = background(lambda f: f(imapinfo()), 300)
+    self.cpu_sampler = sampler(interval, cpustat, cpu_diff, cpu_read)
+    self.net_sampler = sampler(interval, lambda: netstat(netinfo()["ifname"]), net_diff)
+    self.io_sampler  = sampler(interval, lambda: iostat(device, secsz), io_diff)
+    self.emails      = background(lambda f: f(imapinfo()), 30*60)
 
   def dump_meminfo(self):
     mem = meminfo()
@@ -367,8 +368,8 @@ class render(object):
     return("^p(;2)%s^p()" % myimage("arrow_down.xpm"))
 
   def dump_netinfo(self):
-    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt="{0: >5,.1f}%s {1:s}" % self.arup())
-    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt="{0: >5,.1f}%s {1:s}" % self.ardown())
+    upstream   = human_unit(self.net_sampler.get([0,0])[1], fmt="{0: >5,.1f}> {1:s}")
+    downstream = human_unit(self.net_sampler.get([0,0])[0], fmt="{0: >5,.1f}< {1:s}")
     ifname     = netinfo()["ifname"]
     return("%s %s %s" % (ifname, downstream, upstream))
 
@@ -396,8 +397,8 @@ class render(object):
       return("")
 
   def dump_ioinfo(self):
-    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0:>6,.1f}%s {1:s}" % self.arup())
-    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0:>6,.1f}%s {1:s}" % self.ardown())
+    reads  = human_unit(self.io_sampler.get([0,0])[0], fmt=u"{0:>6,.1f}< {1:s}")
+    writes = human_unit(self.io_sampler.get([0,0])[1], fmt=u"{0:>6,.1f}> {1:s}")
     return("%s %s %s" % (self.device, reads, writes))
 
   def dump(self):
