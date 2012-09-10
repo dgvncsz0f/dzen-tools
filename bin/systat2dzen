@@ -318,7 +318,7 @@ class render(object):
     self.cpu_sampler = sampler(interval, cpustat, cpu_diff, cpu_read)
     self.net_sampler = sampler(interval, lambda: netstat(netinfo()["ifname"]), net_diff)
     self.io_sampler  = sampler(interval, lambda: iostat(device, secsz), io_diff)
-    self.emails      = background(lambda f: f(imapinfo()), 30*60)
+    self.emails      = background(lambda f: f(imapinfo()), 7*60)
 
   def dump_meminfo(self):
     mem = meminfo()
