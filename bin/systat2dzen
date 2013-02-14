@@ -158,8 +158,8 @@ def batstat():
   def batlevel(b):
     try:
       if (safe(cat, "0", "%s/present" % b).strip() == "1"):
-        now  = int(cat("%s/charge_now" % b).strip())
-        full = int(cat("%s/charge_full" % b).strip())
+        now  = int(cat("%s/energy_now" % b).strip())
+        full = int(cat("%s/energy_full" % b).strip())
         return(min(now,full) / float(full))
       else:
         return(0);
