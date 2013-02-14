@@ -110,12 +110,13 @@ def human_time(t, fmt="{0:.0f}{1:s}"):
 def meminfo():
   result = {}
   output = cat("/proc/meminfo")
-  result["total"]   = map(long, retrieve(r"^MemTotal:\s+(\d+) kB", output, [0]))[0]
-  result["free"]    = map(long, retrieve(r"^MemFree:\s+(\d+) kB", output, [0]))[0]
-  result["buffers"] = map(long, retrieve(r"^Buffers:\s+(\d+) kB", output, [0]))[0]
-  result["cached"]  = map(long, retrieve(r"^Cached:\s+(\d+) kB", output, [0]))[0]
-  result["swap_total"] = map(long, retrieve(r"^SwapTotal:\s+(\d+) kB", output, [0]))[0]
-  result["swap_free"]  = map(long, retrieve(r"^SwapFree:\s+(\d+) kB", output, [0]))[0]
+  result["total"]       = map(long, retrieve(r"^MemTotal:\s+(\d+) kB", output, [0]))[0]
+  result["free"]        = map(long, retrieve(r"^MemFree:\s+(\d+) kB", output, [0]))[0]
+  result["buffers"]     = map(long, retrieve(r"^Buffers:\s+(\d+) kB", output, [0]))[0]
+  result["cached"]      = map(long, retrieve(r"^Cached:\s+(\d+) kB", output, [0]))[0]
+  result["swap_total"]  = map(long, retrieve(r"^SwapTotal:\s+(\d+) kB", output, [0]))[0]
+  result["swap_free"]   = map(long, retrieve(r"^SwapFree:\s+(\d+) kB", output, [0]))[0]
+  result["swap_free_%"] = float("nan")
 
   free  = result["free"] + result["buffers"] + result["cached"]
   total = result["total"]
@@ -123,7 +124,8 @@ def meminfo():
 
   free  = result["swap_free"]
   total = result["swap_total"]
-  result["swap_free_%"] = free / float(total)
+  if (total != 0):
+    result["swap_free_%"] = free / float(total)
 
   return(result)
 
